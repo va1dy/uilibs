@@ -358,24 +358,30 @@ function esp:update()
             drawing.chams.ins.DepthMode = esp[flag .. 'chams'][6] and Enum.HighlightDepthMode.AlwaysOnTop or Enum.HighlightDepthMode.Occluded
         end
 
-        -- расчет бокса
-        local smallestX, biggestX = math.huge, -math.huge
-        local smallestY, biggestY = math.huge, -math.huge
+-- расчет бокса
+local smallestX, biggestX = math.huge, -math.huge
+local smallestY, biggestY = math.huge, -math.huge
 
-        local offsets = esp:returnoffsets(
-            math.max((centerMassPos.Position - character.RightHand.Position).Magnitude, (centerMassPos.Position - character.LeftHand.Position).Magnitude),
-            (centerMassPos.Position - character.Head.Position).Magnitude + character.Head.Size.Y / 2,
-            math.max((centerMassPos.Position - character.RightFoot.Position).Magnitude, (centerMassPos.Position - character.LeftFoot.Position).Magnitude),
-            character.HumanoidRootPart.Size.Z / 2
-        )
+-- размеры по осям
+local headPos = character.Head.Position
+local rootPos = character.HumanoidRootPart.Position
+local rightHand = character:FindFirstChild("RightHand") and character.RightHand.Position or rootPos
+local leftHand = character:FindFirstChild("LeftHand") and character.LeftHand.Position or rootPos
+local rightFoot = character:FindFirstChild("RightFoot") and character.RightFoot.Position or rootPos
+local leftFoot = character:FindFirstChild("LeftFoot") and character.LeftFoot.Position or rootPos
 
-        for _, offsetCF in next, offsets do
-            local pos = camera:WorldToViewportPoint(centerMassPos * offsetCF)
-            if smallestX > pos.X then smallestX = pos.X end
-            if biggestX < pos.X then biggestX = pos.X end
-            if smallestY > pos.Y then smallestY = pos.Y end
-            if biggestY < pos.Y then biggestY = pos.Y end
-        end
+local offsets = {
+    headPos, rightHand, leftHand, rightFoot, leftFoot, rootPos
+}
+
+for _, worldPos in next, offsets do
+    local screenPos, onScreen = camera:WorldToViewportPoint(worldPos)
+    if smallestX > screenPos.X then smallestX = screenPos.X end
+    if biggestX < screenPos.X then biggestX = screenPos.X end
+    if smallestY > screenPos.Y then smallestY = screenPos.Y end
+    if biggestY < screenPos.Y then biggestY = screenPos.Y end
+end
+
 
         -- box
         drawing.box.Visible = esp[flag .. 'boxes'][1]
