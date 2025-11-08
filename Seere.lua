@@ -429,28 +429,15 @@ function esp:update()
             local minY = minY1 > minY2 and minY1 or minY2
             local minX = x1 < x2 and x1 or x2
 
-			local hrpPos = character.HumanoidRootPart.Position
-			local offsets = {
-				hrpPos + Vector3.new( minX,  y,  minY),
-				hrpPos + Vector3.new(-minX,  y,  minY),
-				hrpPos + Vector3.new( minX, -minY, minY),
-				hrpPos + Vector3.new(-minX, -minY, minY),
-				hrpPos + Vector3.new( minX,  y, -minY),
-				hrpPos + Vector3.new(-minX,  y, -minY),
-				hrpPos + Vector3.new( minX, -minY, -minY),
-				hrpPos + Vector3.new(-minX, -minY, -minY)
-			}
+            local offsets = esp:returnoffsets(minX, y, minY, character['HumanoidRootPart'].Size.Z / 2)
 
-			for i, pos3D in next, offsets do
-				local pos2D, onScreen = camera:WorldToViewportPoint(pos3D)
-				if pos2D then
-					if smallestX > pos2D.X then smallestX = pos2D.X end
-					if biggestX < pos2D.X then biggestX = pos2D.X end
-					if smallestY > pos2D.Y then smallestY = pos2D.Y end
-					if biggestY < pos2D.Y then biggestY = pos2D.Y end
-				end
-			end
-
+            for i, v in next, offsets do
+                local pos = camera:WorldToViewportPoint(centerMassPos * v.p)
+                if smallestX > pos.X then smallestX = pos.X end
+                if biggestX < pos.X then biggestX = pos.X end
+                if smallestY > pos.Y then smallestY = pos.Y end
+                if biggestY < pos.Y then biggestY = pos.Y end
+            end
 
             -- box
             drawing.box.Visible = esp[ flag .. 'boxes'][1]
@@ -578,8 +565,14 @@ for i, plr in next, players:GetPlayers() do
     esp:add(plr)
 end
 esp:connect(players.PlayerAdded, function(plr)
-    esp:add(plr)
+    plr.CharacterAdded:Connect(function(character)
+        esp:add(plr)
+    end)
+    if plr.Character then
+        esp:add(plr)
+    end
 end)
+
 esp:connect(players.PlayerRemoving, function(plr)
     esp:remove(plr)
 end)
