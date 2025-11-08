@@ -9,23 +9,9 @@ local camera = workspace.CurrentCamera
 local viewportSize = camera.ViewportSize
 local container = Instance.new("Folder", gethui and gethui() or game:GetService("CoreGui"))
 
--- locals
-local floor = math.floor
-local round = math.round
-local sin = math.sin
-local cos = math.cos
-local clear = table.clear
-local unpack = table.unpack
-local find = table.find
-local create = table.create
-local fromMatrix = CFrame.fromMatrix
-
 -- constants
 local HEALTH_BAR_OFFSET = Vector2.new(5, 0)
-local HEALTH_TEXT_OFFSET = Vector2.new(3, 0)
 local HEALTH_BAR_OUTLINE_OFFSET = Vector2.new(0, 1)
-local NAME_OFFSET = Vector2.new(0, 2)
-local DISTANCE_OFFSET = Vector2.new(0, 2)
 local VERTICES = {
 	Vector3.new(-1, -1, -1), Vector3.new(-1, 1, -1),
 	Vector3.new(-1, 1, 1), Vector3.new(-1, -1, 1),
@@ -43,11 +29,9 @@ local function getBoundingBox(parts)
 	for i = 1, #parts do
 		local part = parts[i]
 		local cframe, size = part.CFrame, part.Size
-
-		min = min3(min or cframe.Position, (cframe - size*0.5).Position)
-		max = max3(max or cframe.Position, (cframe + size*0.5).Position)
+		min = min and Vector3.new(math.min(min.X, (cframe - size*0.5).X), math.min(min.Y, (cframe - size*0.5).Y), math.min(min.Z, (cframe - size*0.5).Z)) or (cframe - size*0.5).Position
+		max = max and Vector3.new(math.max(max.X, (cframe + size*0.5).X), math.max(max.Y, (cframe + size*0.5).Y), math.max(max.Z, (cframe + size*0.5).Z)) or (cframe + size*0.5).Position
 	end
-
 	local center = (min + max)*0.5
 	local front = Vector3.new(center.X, center.Y, max.Z)
 	return CFrame.new(center, front), max - min
@@ -59,11 +43,10 @@ local function worldToScreen(world)
 end
 
 local function calculateCorners(cframe, size)
-	local corners = create(#VERTICES)
+	local corners = {}
 	for i = 1, #VERTICES do
 		corners[i] = worldToScreen((cframe + size*0.5*VERTICES[i]).Position)
 	end
-
 	local min = Vector2.new(math.huge, math.huge)
 	local max = Vector2.new(-math.huge, -math.huge)
 	for i = 1, #corners do
@@ -72,10 +55,10 @@ local function calculateCorners(cframe, size)
 	end
 	return {
 		corners = corners,
-		topLeft = Vector2.new(floor(min.X), floor(min.Y)),
-		topRight = Vector2.new(floor(max.X), floor(min.Y)),
-		bottomLeft = Vector2.new(floor(min.X), floor(max.Y)),
-		bottomRight = Vector2.new(floor(max.X), floor(max.Y))
+		topLeft = Vector2.new(math.floor(min.X), math.floor(min.Y)),
+		topRight = Vector2.new(math.floor(max.X), math.floor(min.Y)),
+		bottomLeft = Vector2.new(math.floor(min.X), math.floor(max.Y)),
+		bottomRight = Vector2.new(math.floor(max.X), math.floor(max.Y))
 	}
 end
 
@@ -122,9 +105,10 @@ function EspObject:Construct()
 			boxOutline = self:_create("Square", {Thickness = 3, Visible = false}),
 			healthBar = self:_create("Line", {Thickness = 1, Visible = false}),
 			healthBarOutline = self:_create("Line", {Thickness = 3, Visible = false}),
-			healthText = self:_create("Text", {Center = true, Visible = false}),
 			name = self:_create("Text", {Center = true, Visible = false})
-		}
+		},
+		box3d = {},
+		hidden = {}
 	}
 
 	self.renderConnection = runService.Heartbeat:Connect(function()
@@ -180,6 +164,7 @@ function EspObject:Update()
 end
 
 function EspObject:Render()
+	-- Скрываем всё, если отключено
 	if not self.enabled or not self.onScreen then
 		for _, draw in pairs(self.drawings.visible) do
 			draw.Visible = false
@@ -200,14 +185,14 @@ function EspObject:Render()
 	local options = self.options
 
 	-- Box
-	visible.box.Visible = options.box
+	visible.box.Visible = self.enabled and options.box
 	if visible.box.Visible then
 		visible.box.Position = corners.topLeft
 		visible.box.Size = corners.bottomRight - corners.topLeft
 		visible.box.Color = options.boxColor[1]
 		visible.box.Transparency = options.boxColor[2]
 
-		visible.boxOutline.Visible = options.boxOutline
+		visible.boxOutline.Visible = self.enabled and options.boxOutline
 		if visible.boxOutline.Visible then
 			visible.boxOutline.Position = corners.topLeft
 			visible.boxOutline.Size = corners.bottomRight - corners.topLeft
@@ -217,16 +202,15 @@ function EspObject:Render()
 	end
 
 	-- HealthBar
-	visible.healthBar.Visible = options.healthBar
+	visible.healthBar.Visible = self.enabled and options.healthBar
 	if visible.healthBar.Visible then
 		local barFrom = corners.topLeft - HEALTH_BAR_OFFSET
 		local barTo = corners.bottomLeft - HEALTH_BAR_OFFSET
-
 		visible.healthBar.From = lerp2(barTo, barFrom, self.health/self.maxHealth)
 		visible.healthBar.To = barTo
 		visible.healthBar.Color = lerpColor(options.dyingColor, options.healthyColor, self.health/self.maxHealth)
 
-		visible.healthBarOutline.Visible = options.healthBarOutline
+		visible.healthBarOutline.Visible = self.enabled and options.healthBarOutline
 		if visible.healthBarOutline.Visible then
 			visible.healthBarOutline.From = barFrom - HEALTH_BAR_OUTLINE_OFFSET
 			visible.healthBarOutline.To = barTo + HEALTH_BAR_OUTLINE_OFFSET
