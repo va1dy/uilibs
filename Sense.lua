@@ -184,6 +184,14 @@ function EspObject:Render()
 		for _, draw in pairs(self.drawings.visible) do
 			draw.Visible = false
 		end
+		for _, face in pairs(self.drawings.box3d) do
+			for _, line in pairs(face) do
+				line.Visible = false
+			end
+		end
+		for _, draw in pairs(self.drawings.hidden) do
+			draw.Visible = false
+		end
 		return
 	end
 
